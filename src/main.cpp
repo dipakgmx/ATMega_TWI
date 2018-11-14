@@ -4,10 +4,11 @@
 int main()
 {
     TWI twi;
-    uint8_t data[] = "Hello";
+    sei();
+    uint8_t dataTx[] = "hello";
     while(true) {
-        twi.TWIWrite(0x01, data, 6);
-        _delay_ms(200);
+        bool result = twi.TWIWrite(0x01, dataTx, 5);
+        _delay_ms(50);
     }
     return 0;
 
