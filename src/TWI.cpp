@@ -85,16 +85,16 @@ bool TWI::TWIWrite(const uint8_t slaveAddress, const uint8_t *data, const uint8_
     // than the buffer size
     if (dataLen <= TX_BUFFER_SIZE) {
         // Copy slave address into the tx buffer.
-        TWI::txBuffer[0] = slaveAddress << 1;
+        txBuffer[0] = slaveAddress << 1;
 
         //Copy all information in data to txBuffer.
         //Start for loop from index 1 since, 0 has the address
         for (uint8_t index = 1; index <= dataLen; index++) {
-            TWI::txBuffer[index] = data[index - 1];
+            txBuffer[index] = data[index - 1];
         }
         //Set the data length for transmission now
-        TWI::txBufferLen = static_cast<uint8_t>(dataLen + 1);
-        TWI::txIndex = 0;
+        txBufferLen = static_cast<uint8_t>(dataLen + 1);
+        txIndex = 0;
         TWIPerform(TWICommand::START);
     }
     else {
@@ -118,8 +118,9 @@ void TWI::twi_interrupt_handler()
 
         /** Data byte has been transmitted; ACK has been received. **/
         case TWI_MT_TX_DATA_ACK:
-            if (TWI::txIndex < TWI::txBufferLen) {
-                TWDR = TWI::txBuffer[txIndex++];
+            if (txIndex < txBufferLen) {
+                PORTB |= (1 << PINB7);
+                TWDR = txBuffer[txIndex++];
                 TWIPerform(TWICommand::TRANSMIT_DATA);
             }
             else {
@@ -128,7 +129,6 @@ void TWI::twi_interrupt_handler()
             break;
 
         default:
-
         break;
     }
 }
