@@ -68,7 +68,13 @@ public:
     void setPrescaler(PrescalerValue value);
     void setBitRate(long twiFrequency);
     void TWIPerform(TWICommand command);
-    bool TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen);
+    void TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen);
+    void TWIWrite(uint8_t slaveAddress, const char *data);
+    void TWIWrite(uint8_t slaveAddress, uint8_t data);
+
+
+
+
 
 private:
     uint8_t TWIPrescalerValue;

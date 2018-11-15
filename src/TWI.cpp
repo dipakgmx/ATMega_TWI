@@ -79,7 +79,7 @@ void TWI::TWIPerform(TWICommand command)
     }
 }
 
-bool TWI::TWIWrite(const uint8_t slaveAddress, const uint8_t *data, const uint8_t dataLen)
+void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen)
 {
     // Transmission shall only be performed as long as dataLen is lesser
     // than the buffer size
@@ -89,18 +89,31 @@ bool TWI::TWIWrite(const uint8_t slaveAddress, const uint8_t *data, const uint8_
 
         //Copy all information in data to txBuffer.
         //Start for loop from index 1 since, 0 has the address
-        for (uint8_t index = 1; index <= dataLen; index++) {
-            txBuffer[index] = data[index - 1];
+        for (uint8_t index = 0; index <= dataLen; index++) {
+            txBuffer[index + 1] = data[index];
         }
         //Set the data length for transmission now
         txBufferLen = static_cast<uint8_t>(dataLen + 1);
         txIndex = 0;
         TWIPerform(TWICommand::START);
     }
-    else {
-        return false;
-    }
-    return true;
+}
+
+void TWI::TWIWrite(uint8_t slaveAddress, const char *const data)
+{
+    uint8_t dataLen = 0;
+    const char * ptr;
+    ptr = data;
+    while ((*ptr) != '\0') {
+        dataLen++;
+        ptr++;
+    };
+    TWIWrite(slaveAddress, reinterpret_cast<const uint8_t *>(data), dataLen);
+}
+
+void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t data)
+{
+    TWIWrite(slaveAddress, &data, sizeof(data));
 }
 
 void TWI::twi_interrupt_handler()
@@ -136,4 +149,6 @@ void TWI::twi_interrupt_handler()
 ISR(TWI_vect) {
     twi.twi_interrupt_handler();
 }
+
+
 
