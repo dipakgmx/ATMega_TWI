@@ -4,11 +4,14 @@
 int main()
 {
     TWI twi;
+    DDRB |= (1 << PINB7);
     sei();
-    uint8_t dataTx[] = "hello";
+
     while(true) {
-        bool result = twi.TWIWrite(0x01, dataTx, 5);
-        _delay_ms(50);
+        //twi.TWIWrite(0x01, "hello");
+        _delay_ms(100);
+        twi.TWIWrite(0x01, 1);
+
     }
     return 0;
 
