@@ -14,8 +14,8 @@ SET(AVRCONF     /usr/share/arduino/hardware/tools/avrdude.conf)
 SET(ATMELICE    OFF)            #Turn on/off AtmelICE programmer
 #============================================================================================
 SET(CMAKE_SYSTEM_NAME   Generic)
-SET(CMAKE_C_COMPILER    avr-gcc)
-SET(CMAKE_CXX_COMPILER  avr-g++)
+SET(CMAKE_C_COMPILER    /usr/bin/avr-gcc)
+SET(CMAKE_CXX_COMPILER  /usr/bin/avr-g++)
 
 SET(CSTANDARD	"-std=gnu99")
 SET(CPSTANDARD	"-std=gnu++11")

@@ -6,6 +6,7 @@
 #define ATMEGA_TWI_TWI_H
 #include <avr/interrupt.h>
 #include <avr/io.h>
+#include <stdbool.h>
 
 // Transmit buffer length
 #ifndef TX_BUFFER_SIZE
@@ -19,6 +20,31 @@
 
 // Defining the TWI status
 #define TWI_STATUS	(TWSR & 0xF8)
+
+/****************************************************************/
+/* Enumeration to determine the current state of TWI            */
+/****************************************************************/
+
+typedef enum {
+    Available,
+    Initializing,
+    RepeatedStartSent,
+    MasterTransmitter,
+    MasterReceiver,
+    SlaveTransmitter,
+    SlaveReciever
+} TWIState;
+
+/****************************************************************/
+/* TWI information struct                                       */
+/****************************************************************/
+
+typedef struct TWIInfoStruct{
+    TWIState mode;
+    bool repStart;
+}TWIInfoStruct;
+
+
 
 /****************************************************************/
 /* Enumeration for TWI status codes                             */
@@ -68,30 +94,30 @@ public:
     void setPrescaler(PrescalerValue value);
     void setBitRate(long twiFrequency);
     void TWIPerform(TWICommand command);
-    void TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen);
+    void TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen, bool repeatedStart = false);
     void TWIWrite(uint8_t slaveAddress, const char *data);
-
+    bool isTWIReady();
 
     template <typename T>
     void TWIWrite(uint8_t slaveAddress, const T data)
     {
-        TWIWrite(slaveAddress, (uint8_t *)&data, sizeof(data));
+        TWIWrite(slaveAddress, (uint8_t *) &data, sizeof(data), false);
     }
-
-
 
 
 private:
     uint8_t TWIPrescalerValue;
 
+    // Function for handling the TWI_vect interrupt calls
+    inline void twi_interrupt_handler();
+
+    /** Static variables **/
     // Buffer Setup
     // Transmission buffer - Rx
     static uint8_t txBuffer[TX_BUFFER_SIZE];
     static uint8_t txIndex;
     static uint8_t txBufferLen;
-
-    // Function for handling the TWI_vect interrupt calls
-    inline void twi_interrupt_handler();
+    static TWIInfoStruct TWIInfo;
 };
 extern TWI twi;
 

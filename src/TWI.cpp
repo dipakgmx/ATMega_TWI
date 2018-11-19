@@ -9,6 +9,7 @@ TWI twi;
 uint8_t TWI::txBuffer[TX_BUFFER_SIZE] = {0};
 uint8_t TWI::txIndex = 0;
 uint8_t TWI::txBufferLen = 0;
+TWIInfoStruct TWI::TWIInfo = {Available, false};
 
 TWI::TWI(PrescalerValue value, long twiFrequency)
 {
@@ -25,7 +26,8 @@ TWI::TWI(PrescalerValue value, long twiFrequency)
     txBuffer[TX_BUFFER_SIZE] = {0};
     txIndex = 0;
     txBufferLen = 0;
-
+    TWIInfo.mode = Available;
+    TWIInfo.repStart = false;
 }
 
 void TWI::setPrescaler(PrescalerValue value)
@@ -79,14 +81,24 @@ void TWI::TWIPerform(TWICommand command)
     }
 }
 
-void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen)
+bool TWI::isTWIReady()
+{
+    return (TWIInfo.mode == Available)
+    || (TWIInfo.mode == RepeatedStartSent);
+}
+
+void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen, bool repeatedStart)
 {
     // Transmission shall only be performed as long as dataLen is lesser
     // than the buffer size
     if (dataLen <= TX_BUFFER_SIZE) {
+        while (!isTWIReady()) {
+            _delay_us(1);
+        }
+        // Set repeated start mode
+        TWIInfo.repStart = repeatedStart;
         // Copy slave address into the tx buffer.
         txBuffer[0] = slaveAddress << 1;
-
         //Copy all information in data to txBuffer.
         //Start for loop from index 1 since, 0 has the address
         for (uint8_t index = 0; index <= dataLen; index++) {
@@ -95,7 +107,19 @@ void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen)
         //Set the data length for transmission now
         txBufferLen = static_cast<uint8_t>(dataLen + 1);
         txIndex = 0;
-        TWIPerform(TWICommand::START);
+
+        // If a repeated stop is already send, devices are expecting data
+        // and not another start condition
+        if (TWIInfo.mode == RepeatedStartSent) {
+            TWIInfo.mode = Initializing;
+            TWDR = txBuffer[txIndex++];
+            TWIPerform(TWICommand::TRANSMIT_DATA);
+        }
+        else {
+            TWIInfo.mode = Initializing;
+            TWIPerform(TWICommand::START);
+        }
+
     }
 }
 
@@ -108,36 +132,45 @@ void TWI::TWIWrite(uint8_t slaveAddress, const char *const data)
         dataLen++;
         ptr++;
     };
-    TWIWrite(slaveAddress, reinterpret_cast<const uint8_t *>(data), dataLen);
+    TWIWrite(slaveAddress, reinterpret_cast<const uint8_t *>(data), dataLen, false);
 }
 
 void TWI::twi_interrupt_handler()
 {
 
     switch (TWI_STATUS) {
-        /** A START condition has been transmitted. **/
-        case TWI_START:
-
-        /** A repeated START condition has been transmitted. **/
-        case TWI_RESTART:
 
         /** SLA+W has been transmitted; ACK has been received. **/
         case TWI_MT_TX_SLA_ACK:
+            TWIInfo.mode = MasterTransmitter;
+
+        /** A START condition has been transmitted. **/
+        case TWI_START:
 
         /** Data byte has been transmitted; ACK has been received. **/
         case TWI_MT_TX_DATA_ACK:
+
             if (txIndex < txBufferLen) {
-                PORTB |= (1 << PINB7);
                 TWDR = txBuffer[txIndex++];
                 TWIPerform(TWICommand::TRANSMIT_DATA);
             }
+            else if (TWIInfo.repStart) {
+                TWIPerform(TWICommand::START);
+            }
             else {
+                TWIInfo.mode = Available;
                 TWIPerform(TWICommand::STOP);
             }
             break;
 
-        default:
+        /** A repeated START condition has been transmitted. **/
+        case TWI_RESTART:
+            TWIInfo.mode = RepeatedStartSent;
         break;
+
+        default:
+            TWIInfo.mode = Available;
+            break;
     }
 }
 
@@ -145,6 +178,7 @@ void TWI::twi_interrupt_handler()
 ISR(TWI_vect) {
     twi.twi_interrupt_handler();
 }
+
 
 
 
