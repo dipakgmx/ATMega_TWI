@@ -70,16 +70,14 @@ public:
     void TWIPerform(TWICommand command);
     void TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen);
     void TWIWrite(uint8_t slaveAddress, const char *data);
-    void TWIWrite(uint8_t slaveAddress, uint8_t data);
-    /*
+
+
     template <typename T>
     void TWIWrite(uint8_t slaveAddress, const T data)
     {
-        uint8_t* ptr_data;
-        ptr_data = (uint8_t *)&data;
-        TWIWrite(slaveAddress, ptr_data, sizeof(data));
+        TWIWrite(slaveAddress, (uint8_t *)&data, sizeof(data));
+    }
 
-    }*/
 
 
 

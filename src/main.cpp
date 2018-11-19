@@ -1,3 +1,4 @@
+#include <avr/io.h>
 #include "TWI.h"
 #include "util/delay.h"
 
@@ -10,7 +11,7 @@ int main()
     while(true) {
         //twi.TWIWrite(0x01, "hello");
         _delay_ms(100);
-        twi.TWIWrite(0x01, 1);
+        twi.TWIWrite(0x01, 255);
 
     }
     return 0;

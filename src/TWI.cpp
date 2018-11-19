@@ -111,11 +111,6 @@ void TWI::TWIWrite(uint8_t slaveAddress, const char *const data)
     TWIWrite(slaveAddress, reinterpret_cast<const uint8_t *>(data), dataLen);
 }
 
-void TWI::TWIWrite(uint8_t slaveAddress, uint8_t data)
-{
-    TWIWrite(slaveAddress, &data, sizeof(data));
-}
-
 void TWI::twi_interrupt_handler()
 {
 
@@ -150,6 +145,7 @@ void TWI::twi_interrupt_handler()
 ISR(TWI_vect) {
     twi.twi_interrupt_handler();
 }
+
 
 
 
