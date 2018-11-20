@@ -9,13 +9,9 @@ int main()
     sei();
 
     while(true) {
-        twi.TWIWrite(0x01, "hello");
-        _delay_ms(10);
-        twi.TWIWrite(0x01, "bjlat");
-        _delay_ms(10);
-        twi.TWIWrite<uint8_t >(0x01, 254);
-        _delay_ms(10);
-
+        uint8_t data[6];
+        _delay_ms(100);
+        twi.TWIRead(1,data,6);
     }
     return 0;
 

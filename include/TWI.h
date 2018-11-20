@@ -40,7 +40,7 @@ typedef enum {
 /****************************************************************/
 
 typedef struct TWIInfoStruct{
-    TWIState mode;
+    TWIState state;
     bool repStart;
 }TWIInfoStruct;
 
@@ -59,6 +59,10 @@ enum {
     TWI_M_ARB_LOST      = 0x38,     /*Arbitration lost in SLA+W or data bytes
                                     *(Transmitter); Arbitration lost in SLA+R or
                                     *NOT ACK bit (Receiver).*/
+    TWI_SL_RX_SLA_ACK   = 0x40,     /*SLA+R has been transmitted; ACK has been received*/
+    TWI_SL_RX_SLA_NACK  = 0x48,     /*SLA+R has been transmitted; NOT ACK has been received*/
+    TWI_SL_RX_DATA_ACK  = 0x50,     /*Data byte has been received; ACK has been returned*/
+    TWI_SL_RX_DATA_NACK = 0x58,     /*Data byte has been received; NOT ACK has been returned*/
 };
 
 /****************************************************************/
@@ -90,19 +94,38 @@ class TWI {
     friend void TWI_vect(void);
 
 public:
-    explicit TWI(PrescalerValue value = PrescalerValue::PRESCALE_VALUE_1, long twiFrequency = 100000);
+    explicit TWI(PrescalerValue value = PrescalerValue::PRESCALE_VALUE_1,
+        long twiFrequency = 100000);
+
     void setPrescaler(PrescalerValue value);
+
     void setBitRate(long twiFrequency);
+
     void TWIPerform(TWICommand command);
-    void TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen, bool repeatedStart = false);
-    void TWIWrite(uint8_t slaveAddress, const char *data);
+
     bool isTWIReady();
 
+    void TWIWrite(uint8_t slaveAddress,
+                      const uint8_t *data,
+                      uint8_t dataLen,
+                      bool repeatedStart = false,
+                      bool TWIReadRequest = false);
+    void TWIWrite(const uint8_t slaveAddress,
+        const char *const data,
+        const bool repeatedStart = false);
+
     template <typename T>
-    void TWIWrite(uint8_t slaveAddress, const T data)
+    void TWIWrite(const uint8_t slaveAddress,
+        const T data,
+        const bool repeatedStart = false)
     {
-        TWIWrite(slaveAddress, (uint8_t *) &data, sizeof(data), false);
+        TWIWrite(slaveAddress, (uint8_t *) &data, sizeof(data), repeatedStart, false);
     }
+
+    void TWIRead(const uint8_t slaveAddress,
+        uint8_t* data,
+        uint8_t readBytesLen,
+        const bool repeatedStart = false);
 
 
 private:
@@ -117,6 +140,13 @@ private:
     static uint8_t txBuffer[TX_BUFFER_SIZE];
     static uint8_t txIndex;
     static uint8_t txBufferLen;
+
+    // Buffer Setup
+    // Receiver buffer - Rx
+    static uint8_t rxBuffer[TX_BUFFER_SIZE];
+    static uint8_t rxIndex;
+    static uint8_t rxBufferLen;
+
     static TWIInfoStruct TWIInfo;
 };
 extern TWI twi;

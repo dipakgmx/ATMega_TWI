@@ -9,6 +9,9 @@ TWI twi;
 uint8_t TWI::txBuffer[TX_BUFFER_SIZE] = {0};
 uint8_t TWI::txIndex = 0;
 uint8_t TWI::txBufferLen = 0;
+uint8_t TWI::rxBuffer[TX_BUFFER_SIZE] = {0};
+uint8_t TWI::rxIndex = 0;
+uint8_t TWI::rxBufferLen = 0;
 TWIInfoStruct TWI::TWIInfo = {Available, false};
 
 TWI::TWI(PrescalerValue value, long twiFrequency)
@@ -26,7 +29,10 @@ TWI::TWI(PrescalerValue value, long twiFrequency)
     txBuffer[TX_BUFFER_SIZE] = {0};
     txIndex = 0;
     txBufferLen = 0;
-    TWIInfo.mode = Available;
+    rxBuffer[TX_BUFFER_SIZE] = {0};
+    rxIndex = 0;
+    rxBufferLen = 0;
+    TWIInfo.state = Available;
     TWIInfo.repStart = false;
 }
 
@@ -83,11 +89,15 @@ void TWI::TWIPerform(TWICommand command)
 
 bool TWI::isTWIReady()
 {
-    return (TWIInfo.mode == Available)
-    || (TWIInfo.mode == RepeatedStartSent);
+    return (TWIInfo.state == Available)
+    || (TWIInfo.state == RepeatedStartSent);
 }
 
-void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen, bool repeatedStart)
+void TWI::TWIWrite( uint8_t slaveAddress,
+                    const uint8_t *data,
+                    uint8_t dataLen,
+                    bool repeatedStart,
+                    bool TWIReadRequest)
 {
     // Transmission shall only be performed as long as dataLen is lesser
     // than the buffer size
@@ -95,10 +105,18 @@ void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen, b
         while (!isTWIReady()) {
             _delay_us(1);
         }
-        // Set repeated start mode
+        // Set repeated start state
         TWIInfo.repStart = repeatedStart;
-        // Copy slave address into the tx buffer.
-        txBuffer[0] = slaveAddress << 1;
+        if (TWIReadRequest) {
+            //In case the TWIWrite function is called from the TWIRead function, the slave address with the read
+            // command is already sent. Hence it is not necessary to perform the shift operation again
+            txBuffer[0] = slaveAddress;
+        }
+        else {
+            // Copy slave address into the tx buffer.
+            txBuffer[0] = slaveAddress << 1;
+        }
+
         //Copy all information in data to txBuffer.
         //Start for loop from index 1 since, 0 has the address
         for (uint8_t index = 0; index <= dataLen; index++) {
@@ -110,46 +128,70 @@ void TWI::TWIWrite(uint8_t slaveAddress, const uint8_t *data, uint8_t dataLen, b
 
         // If a repeated stop is already send, devices are expecting data
         // and not another start condition
-        if (TWIInfo.mode == RepeatedStartSent) {
-            TWIInfo.mode = Initializing;
+        if (TWIInfo.state == RepeatedStartSent) {
+            TWIInfo.state = Initializing;
             TWDR = txBuffer[txIndex++];
             TWIPerform(TWICommand::TRANSMIT_DATA);
         }
         else {
-            TWIInfo.mode = Initializing;
+            TWIInfo.state = Initializing;
             TWIPerform(TWICommand::START);
         }
-
     }
 }
 
-void TWI::TWIWrite(uint8_t slaveAddress, const char *const data)
+void TWI::TWIWrite( const uint8_t slaveAddress,
+                    const char *const data,
+                    const bool repeatedStart)
 {
     uint8_t dataLen = 0;
     const char * ptr;
     ptr = data;
-    while ((*ptr) != '\0') {
+    while (  ((*ptr) != '\0')
+           &&(dataLen < TX_BUFFER_SIZE)) {
         dataLen++;
         ptr++;
     };
-    TWIWrite(slaveAddress, reinterpret_cast<const uint8_t *>(data), dataLen, false);
+    TWIWrite(slaveAddress, reinterpret_cast<const uint8_t *>(data), dataLen, repeatedStart, false);
+}
+
+void TWI::TWIRead(  const uint8_t slaveAddress,
+                    uint8_t *data,
+                    uint8_t readBytesLen,
+                    const bool repeatedStart)
+{
+    if (readBytesLen <= RX_BUFFER_SIZE) {
+        rxIndex = 0;
+        rxBufferLen = readBytesLen;
+        //Create a temp variable to send
+        // Slave address + Write
+        auto slaveAddressWrite = static_cast<uint8_t>((slaveAddress << 1) | 0x01);
+        //Calling the TWIWrite function to transmit the data
+        TWIWrite(slaveAddressWrite, nullptr, 0, repeatedStart, true);
+
+        //Wait until buffer is filled with received data
+        while (rxIndex != rxBufferLen - 1) {
+            _delay_us(1);
+        }
+        for (uint8_t index = 0; index < rxBufferLen; index++) {
+            data[index] = rxBuffer[index];
+        }
+    }
 }
 
 void TWI::twi_interrupt_handler()
 {
-
     switch (TWI_STATUS) {
 
         /** SLA+W has been transmitted; ACK has been received. **/
         case TWI_MT_TX_SLA_ACK:
-            TWIInfo.mode = MasterTransmitter;
+            TWIInfo.state = MasterTransmitter;
 
         /** A START condition has been transmitted. **/
         case TWI_START:
 
         /** Data byte has been transmitted; ACK has been received. **/
         case TWI_MT_TX_DATA_ACK:
-
             if (txIndex < txBufferLen) {
                 TWDR = txBuffer[txIndex++];
                 TWIPerform(TWICommand::TRANSMIT_DATA);
@@ -158,26 +200,62 @@ void TWI::twi_interrupt_handler()
                 TWIPerform(TWICommand::START);
             }
             else {
-                TWIInfo.mode = Available;
+                TWIInfo.state = Available;
                 TWIPerform(TWICommand::STOP);
             }
             break;
 
         /** A repeated START condition has been transmitted. **/
         case TWI_RESTART:
-            TWIInfo.mode = RepeatedStartSent;
+            TWIInfo.state = RepeatedStartSent;
         break;
 
-        default:
-            TWIInfo.mode = Available;
+        /** SLA+R has been transmitted; ACK has been received **/
+        case TWI_SL_RX_SLA_ACK:
+            TWIInfo.state = MasterReceiver;
+            // Checking if more than 1 byte is expected. If yes, send ACK, else send NACK
+            if (rxIndex < rxBufferLen - 1) {
+                TWI::TWIPerform(TWICommand::TRANSMIT_ACK);
+            }
+            else {
+                TWI::TWIPerform(TWICommand::TRANSMIT_NACK);
+            }
+        break;
+
+        /** Data byte has been received; ACK has been returned **/
+        case TWI_SL_RX_DATA_ACK:
+            rxBuffer[rxIndex++] = TWDR;
+            // Checking if more than 1 byte is expected. If yes, send ACK, else send NACK
+            if (rxIndex < rxBufferLen - 1) {
+                TWI::TWIPerform(TWICommand::TRANSMIT_ACK);
+            }
+            else {
+                TWI::TWIPerform(TWICommand::TRANSMIT_NACK);
+            }
+        break;
+
+        /** Data byte has been received; NOT ACK has been returned **/
+        case TWI_SL_RX_DATA_NACK:
+            rxBuffer[rxIndex++] = TWDR;
+            if (TWIInfo.repStart) {
+                TWIPerform(TWICommand::START);
+            }
+            else {
+                TWIInfo.state = Available;
+                TWIPerform(TWICommand::STOP);
+            }
+        break;
+
+    default:
+            TWIInfo.state = Available;
             break;
     }
 }
 
-
 ISR(TWI_vect) {
     twi.twi_interrupt_handler();
 }
+
 
 
 
