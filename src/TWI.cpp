@@ -40,22 +40,25 @@ void TWI::setPrescaler(PrescalerValue value)
 {
     /** TWPS: TWI Prescaler Bits **/
     switch(value) {
-    case PrescalerValue::PRESCALE_VALUE_1:
-        TWSR |= 0;
-        this->TWIPrescalerValue = 1;
-        break;
-    case PrescalerValue::PRESCALE_VALUE_4:
-        TWSR |= 1;
-        this->TWIPrescalerValue = 4;
-        break;
-    case PrescalerValue::PRESCALE_VALUE_16:
-        TWSR |= 2;
-        this->TWIPrescalerValue = 16;
-        break;
-    case PrescalerValue::PRESCALE_VALUE_64:
-        TWSR |= 3;
-        this->TWIPrescalerValue = 64;
-        break;
+        case PrescalerValue::PRESCALE_VALUE_1:
+            TWSR |= 0;
+            this->TWIPrescalerValue = 1;
+            break;
+
+        case PrescalerValue::PRESCALE_VALUE_4:
+            TWSR |= 1;
+            this->TWIPrescalerValue = 4;
+            break;
+
+        case PrescalerValue::PRESCALE_VALUE_16:
+            TWSR |= 2;
+            this->TWIPrescalerValue = 16;
+            break;
+
+        case PrescalerValue::PRESCALE_VALUE_64:
+            TWSR |= 3;
+            this->TWIPrescalerValue = 64;
+            break;
     }
 }
 
@@ -69,21 +72,25 @@ void TWI::setBitRate(long twiFrequency)
 void TWI::TWIPerform(TWICommand command)
 {
     switch (command) {
-    case TWICommand::START:
-        TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN) | (1<<TWIE);
-        break;
-    case TWICommand::STOP:
-        TWCR = (1<<TWINT) | (1<<TWEN)| (1<<TWSTO);
-        break;
-    case TWICommand::TRANSMIT_DATA:
-    case TWICommand::TRANSMIT_NACK:
-        TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE);
-        break;
-    case TWICommand::TRANSMIT_ACK:
-        TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE) | (1<<TWEA);
-        break;
-    default:
-        break;
+        case TWICommand::START:
+            TWCR = (1<<TWINT) | (1<<TWSTA) | (1<<TWEN) | (1<<TWIE);
+            break;
+
+        case TWICommand::STOP:
+            TWCR = (1<<TWINT) | (1<<TWEN)| (1<<TWSTO);
+            break;
+
+        case TWICommand::TRANSMIT_DATA:
+        case TWICommand::TRANSMIT_NACK:
+            TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE);
+            break;
+
+        case TWICommand::TRANSMIT_ACK:
+            TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWIE) | (1<<TWEA);
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -208,7 +215,7 @@ void TWI::twi_interrupt_handler()
         /** A repeated START condition has been transmitted. **/
         case TWI_RESTART:
             TWIInfo.state = RepeatedStartSent;
-        break;
+            break;
 
         /** SLA+R has been transmitted; ACK has been received **/
         case TWI_SL_RX_SLA_ACK:
@@ -220,7 +227,7 @@ void TWI::twi_interrupt_handler()
             else {
                 TWI::TWIPerform(TWICommand::TRANSMIT_NACK);
             }
-        break;
+            break;
 
         /** Data byte has been received; ACK has been returned **/
         case TWI_SL_RX_DATA_ACK:
@@ -232,7 +239,7 @@ void TWI::twi_interrupt_handler()
             else {
                 TWI::TWIPerform(TWICommand::TRANSMIT_NACK);
             }
-        break;
+            break;
 
         /** Data byte has been received; NOT ACK has been returned **/
         case TWI_SL_RX_DATA_NACK:
@@ -244,9 +251,9 @@ void TWI::twi_interrupt_handler()
                 TWIInfo.state = Available;
                 TWIPerform(TWICommand::STOP);
             }
-        break;
+            break;
 
-    default:
+        default:
             TWIPerform(TWICommand::STOP);
             TWIInfo.state = Available;
             break;
