@@ -247,6 +247,7 @@ void TWI::twi_interrupt_handler()
         break;
 
     default:
+            TWIPerform(TWICommand::STOP);
             TWIInfo.state = Available;
             break;
     }
@@ -255,9 +256,3 @@ void TWI::twi_interrupt_handler()
 ISR(TWI_vect) {
     twi.twi_interrupt_handler();
 }
-
-
-
-
-
-

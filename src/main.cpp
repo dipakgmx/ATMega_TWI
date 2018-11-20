@@ -5,7 +5,6 @@
 int main()
 {
     TWI twi;
-    DDRB |= (1 << PINB7);
     sei();
 
     while(true) {
