@@ -5,13 +5,12 @@
 int main()
 {
     TWI twi;
+    twi.TWISetMode(TWIMode::Slave, 0x01);
     sei();
 
     while(true) {
-        uint8_t data[6];
         _delay_ms(100);
-        twi.TWIRead(1,data,6);
+        twi.TWIWrite(" ");
     }
     return 0;
-
 }
