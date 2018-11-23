@@ -13,7 +13,7 @@ uint8_t TWI::txBufferLen = 0;
 uint8_t TWI::rxBuffer[TX_BUFFER_SIZE] = {0};
 uint8_t TWI::rxIndex = 0;
 uint8_t TWI::rxBufferLen = 0;
-TWIInfoStruct TWI::TWIInfo = {Available, false};
+TWIInfoStruct TWI::TWIInfo = {Available, None, false};
 
 TWI::TWI()
 {
@@ -64,10 +64,7 @@ void TWI::TWISetMode(TWIMode requestedMode,
 
         this->slaveModeAddress = setSlaveAddress;
         TWAR = slaveModeAddress << 1;
-        TWCR = (1<<TWEN)|                                 // Enable TWI-interface and release TWI pins.
-            (0<<TWIE)|(0<<TWINT)|                      // Disable TWI Interupt.
-            (0<<TWEA)|(0<<TWSTA)|(0<<TWSTO)|           // Do not ACK on any requests, yet.
-            (0<<TWWC);
+        TWI::TWIPerform(TWICommand::ENABLE_SLAVE);
     }
 
 }
@@ -239,15 +236,14 @@ void TWI::Write(const uint8_t slaveAddress,
 void TWI::Write(const char *const data)
 {
     txIndex = 0;
-    uint8_t dataLen = 0;
+    txBufferLen = 0;
     const char * ptr;
     ptr = data;
     while (  ((*ptr) != '\0')
-        &&(dataLen < TX_BUFFER_SIZE)) {
-        txBuffer[dataLen++] = static_cast<uint8_t>(*ptr);
+        &&(txBufferLen < TX_BUFFER_SIZE)) {
+        txBuffer[txBufferLen++] = static_cast<uint8_t>(*ptr);
         ptr++;
     };
-    TWI::TWIPerform(TWICommand::ENABLE_SLAVE);
 }
 
 /**
@@ -294,14 +290,25 @@ void TWI::twi_interrupt_handler()
         /** SLA+W has been transmitted; ACK has been received. **/
         case TWI_MT_SLA_ACK:
             TWIInfo.state = MasterTransmitter;
+            TWIInfo.status = Master_TX_Init;
 
         /** A START condition has been transmitted. **/
         case TWI_START:
+
+        /** A repeated START condition has been transmitted. **/
+        case TWI_RESTART:
+            TWIInfo.state = RepeatedStartSent;
+        break;
+
+        /****************************************************************/
+        /** MASTER TRANSMITTER **/
+        /****************************************************************/
 
         /** Data byte has been transmitted; ACK has been received. **/
         case TWI_MT_DATA_ACK:
             if (txIndex < txBufferLen) {
                 TWDR = txBuffer[txIndex++];
+                TWIInfo.status = Master_TX_Progress;
                 TWIPerform(TWICommand::TRANSMIT_DATA);
             }
             else if (TWIInfo.repStart) {
@@ -309,18 +316,19 @@ void TWI::twi_interrupt_handler()
             }
             else {
                 TWIInfo.state = Available;
+                TWIInfo.status = Master_TX_Complete;
                 TWIPerform(TWICommand::STOP);
             }
             break;
 
-        /** A repeated START condition has been transmitted. **/
-        case TWI_RESTART:
-            TWIInfo.state = RepeatedStartSent;
-            break;
+        /****************************************************************/
+        /** MASTER RECEIVER **/
+        /****************************************************************/
 
         /** SLA+R has been transmitted; ACK has been received **/
         case TWI_MR_SLA_ACK:
             TWIInfo.state = MasterReceiver;
+            TWIInfo.status = Master_RX_Init;
             // Checking if more than 1 byte is expected. If yes, send ACK, else send NACK
             if (rxIndex < rxBufferLen - 1) {
                 TWIPerform(TWICommand::TRANSMIT_ACK);
@@ -335,9 +343,11 @@ void TWI::twi_interrupt_handler()
             rxBuffer[rxIndex++] = TWDR;
             // Checking if more than 1 byte is expected. If yes, send ACK, else send NACK
             if (rxIndex < rxBufferLen - 1) {
+                TWIInfo.status = Master_RX_Progress;
                 TWIPerform(TWICommand::TRANSMIT_ACK);
             }
             else {
+                TWIInfo.status = Master_RX_Complete;
                 TWIPerform(TWICommand::TRANSMIT_NACK);
             }
             break;
@@ -351,10 +361,13 @@ void TWI::twi_interrupt_handler()
             else {
                 TWIInfo.state = Available;
                 TWIPerform(TWICommand::STOP);
+                TWIInfo.status = Master_RX_Complete;
             }
             break;
 
+        /****************************************************************/
         /** SLAVE TRANSMITTER **/
+        /****************************************************************/
 
         /** Own SLA+R has been received; ACK has been returned **/
         case TWI_ST_SLA_ACK:
@@ -365,7 +378,12 @@ void TWI::twi_interrupt_handler()
         /** Data byte in TWDR has been transmitted; ACK has been received **/
         case TWI_ST_DATA_ACK:
             // Copy data from current buffer position
-            TWDR = txBuffer[txIndex++];
+            if (txIndex < txBufferLen) {
+                TWDR = txBuffer[txIndex++];
+            }
+            else {
+                TWDR = 0;
+            }
             TWIPerform(TWICommand::ENABLE_SLAVE);
             break;
 
@@ -375,7 +393,9 @@ void TWI::twi_interrupt_handler()
             TWIPerform(TWICommand::ENABLE_SLAVE);
             break;
 
+        /****************************************************************/
         /** SLAVE RECEIVER **/
+        /****************************************************************/
 
         /** General call address has been received; ACK has been returned **/
         case TWI_SR_GEN_ACK:

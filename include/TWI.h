@@ -25,11 +25,32 @@ typedef enum {
 } TWIState;
 
 /****************************************************************/
+/* Enumeration to determine the current state of TWI            */
+/****************************************************************/
+typedef enum {
+    None,
+    Master_TX_Init,
+    Master_TX_Progress,
+    Master_TX_Complete,
+    Master_RX_Init,
+    Master_RX_Progress,
+    Master_RX_Complete,
+    Slave_TX_Init,
+    Slave_TX_Progress,
+    Slave_TX_Complete,
+    Slave_RX_Init,
+    Slave_RX_Progress,
+    Slave_RX_Complete,
+    Error
+} TWIStatus;
+
+/****************************************************************/
 /* TWI information struct                                       */
 /****************************************************************/
 
 typedef struct TWIInfoStruct{
     TWIState state;
+    TWIStatus status;
     bool repStart;
 }TWIInfoStruct;
 
