@@ -8,23 +8,12 @@
 #include <avr/io.h>
 #include <stdbool.h>
 
-// Transmit buffer length
-#ifndef TX_BUFFER_SIZE
-    #define TX_BUFFER_SIZE 32
-#endif
-
-// Receiver buffer length
-#ifndef RX_BUFFER_SIZE
-    #define RX_BUFFER_SIZE 32
-#endif
-
 // Defining the TWI status
 #define TWI_STATUS	(TWSR & 0xF8)
 
 /****************************************************************/
 /* Enumeration to determine the current state of TWI            */
 /****************************************************************/
-
 typedef enum {
     Available,
     Initializing,
@@ -52,12 +41,16 @@ typedef struct TWIInfoStruct{
 enum {
     TWI_START                   = 0x08,     /*!< A START condition has been transmitted.*/
     TWI_RESTART                 = 0x10,     /*!< A repeated START condition has been transmitted.*/
+
+    /** Master transmitter mode **/
     TWI_MT_SLA_ACK              = 0x18,     /*!< SLA+W has been transmitted; ACK has been received.*/
     TWI_MT_SLA_NACK             = 0x20,     /*!< SLA+W has been transmitted; NOT ACK has been received.*/
     TWI_MT_DATA_ACK             = 0x28,     /*!< Data byte has been transmitted; ACK has been received.*/
     TWI_MT_DATA_NACK            = 0x30,     /*!< Data byte has been transmitted; NOT ACK has been received.*/
     TWI_M_ARB_LOST              = 0x38,     /*!< Arbitration lost in SLA+W or data bytes  (Transmitter); Arbitration
                                             * lost in SLA+R or NOT ACK bit (Receiver).*/
+
+    /** Master receiver mode **/
     TWI_MR_SLA_ACK              = 0x40,     /*!< SLA+R has been transmitted; ACK has been received*/
     TWI_MR_SLA_NACK             = 0x48,     /*!< SLA+R has been transmitted; NOT ACK has been received*/
     TWI_MR_DATA_ACK             = 0x50,     /*!< Data byte has been received; ACK has been returned*/
@@ -65,13 +58,30 @@ enum {
 
     /** Slave transmitter mode **/
     TWI_ST_SLA_ACK              = 0xA8,     /*!< Own SLA+R has been received; ACK has been returned */
-    TWS_ST_SLA_ACK_M_ARB_LOST   = 0xB0,     /*!< Arbitration lost in SLA+R/W as Master; own SLA+R has been received;
+    TWI_ST_SLA_ACK_M_ARB_LOST   = 0xB0,     /*!< Arbitration lost in SLA+R/W as Master; own SLA+R has been received;
                                             * ACK has been returned*/
-    TWS_ST_DATA_ACK             = 0xB8,     /*!< Data byte in TWDR has been transmitted; ACK has been received */
-    TWS_ST_DATA_NACK            = 0xC0,     /*!< Data byte in TWDR has been transmitted;  NOT ACK has been received */
-    TWS_ST_DATA_ACK_LAST_BYTE   = 0xC8,     /*!< Last data byte in TWDR has been transmitted (TWEA = ; ACK has been
+    TWI_ST_DATA_ACK             = 0xB8,     /*!< Data byte in TWDR has been transmitted; ACK has been received */
+    TWI_ST_DATA_NACK            = 0xC0,     /*!< Data byte in TWDR has been transmitted;  NOT ACK has been received */
+    TWI_ST_DATA_ACK_LAST_BYTE   = 0xC8,     /*!< Last data byte in TWDR has been transmitted (TWEA = ; ACK has been
                                             * received */
 
+    /** Slave receiver mode **/
+    TWI_SR_SLA_ACK              = 0x60,     /*!< Own SLA+W has been received; ACK has been returned */
+    TWI_SR_SLA_ACK_M_ARB_LOST   = 0x68,     /*!< Arbitration lost in  SLA+R/W as Master; own SLA+W has been received
+                                            * ACK has been returned */
+    TWI_SR_GEN_ACK              = 0x70,     /*!< General call address has been received; ACK has been returned */
+    TWI_SR_GEN_ACK_M_ARB_LOST   = 0x78,     /*!< Arbitration lost in SLA+R/W as Master; General call address has been
+                                            * received;  ACK has been returned */
+    TWI_SR_SLA_DATA_ACK         = 0x80,     /*!< Previously addressed with own SLA+W; data has been received;  ACK
+                                            * has been returned */
+    TWI_SR_SLA_DATA_NACK        = 0x88,     /*!< Previously addressed with own SLA+W; data has been received;NOT ACK
+                                            * has been returned */
+    TWI_SR_GEN_DATA_ACK         = 0x90,     /*!< Previously addressed with general call; data has been received; ACK
+                                            * has been returned */
+    TWI_SR_GEN_DATA_NACK        = 0x98,     /*!< Previously addressed with general call; data has been received; NOT
+                                            * ACK has been returned */
+    TWI_SR_STOP_RESTART         = 0xA0      /*!< A STOP condition or repeated START condition has been received while
+                                            * still addressed as Slave */
 };
 
 /****************************************************************/
@@ -84,7 +94,8 @@ enum class TWICommand
     TRANSMIT_DATA   = 2,        /*!< Transmit data in master transmitter mode */
     TRANSMIT_ACK    = 3,        /*!< Transmit ACK */
     TRANSMIT_NACK   = 4,        /*!< Transmit NACK */
-    ENABLE_SLAVE    = 5         /*!< Enable slave mode */
+    ENABLE_SLAVE    = 5,         /*!< Enable slave mode */
+    RESET           = 6
 };
 
 /****************************************************************/
@@ -128,30 +139,32 @@ public:
 
     bool isTWIReady();
 
-    void TWIWrite(uint8_t slaveAddress,
-                      const uint8_t *data,
-                      uint8_t dataLen,
-                      bool repeatedStart = false,
-                      bool TWIReadRequest = false);
+    void Write(uint8_t slaveAddress,
+               const uint8_t *data,
+               uint8_t dataLen,
+               bool repeatedStart = false,
+               bool TWIReadRequest = false);
 
-    void TWIWrite(const uint8_t slaveAddress,
-        const char *const data,
-        const bool repeatedStart = false);
+    void Write(const uint8_t slaveAddress,
+               const char *const data,
+               const bool repeatedStart = false);
 
     template <typename T>
-    void TWIWrite(const uint8_t slaveAddress,
-        const T data,
-        const bool repeatedStart = false)
+    void Write(const uint8_t slaveAddress,
+               const T data,
+               const bool repeatedStart = false)
     {
-        TWIWrite(slaveAddress, (uint8_t *) &data, sizeof(data), repeatedStart, false);
+        Write(slaveAddress, (uint8_t *) &data, sizeof(data), repeatedStart, false);
     }
 
-    void TWIWrite(const char *const data);
+    void Write(const char *const data);
 
-    void TWIRead(const uint8_t slaveAddress,
-        uint8_t* data,
-        uint8_t readBytesLen,
-        const bool repeatedStart = false);
+    void Read(const uint8_t slaveAddress,
+              uint8_t *data,
+              uint8_t readBytesLen,
+              const bool repeatedStart = false);
+
+    void Read();
     
     bool GetAvailability();
 
@@ -161,12 +174,15 @@ private:
     uint8_t slaveModeAddress;
 
 
+
+
     // Function for handling the TWI_vect interrupt calls
     inline void twi_interrupt_handler();
 
     /** Static variables **/
     // Buffer Setup
     // Transmission buffer - Rx
+    static const uint8_t TX_BUFFER_SIZE = 32; /*!< Transmission buffer size */
     static uint8_t txBuffer[TX_BUFFER_SIZE]; /*!< Transmission buffer to hold values before being sent on the TWI */
     static uint8_t txIndex;    /*!< Current index within the transmission buffer (txBuffer) */
     static uint8_t txBufferLen; /*!< Current size of the transmission buffer. Depends on the length of the data to be
@@ -174,8 +190,9 @@ private:
 
     // Buffer Setup
     // Receiver buffer - Rx
-    static uint8_t rxBuffer[TX_BUFFER_SIZE]; /*!< Reception buffer to hold values before being sent on the TWI */
-    static uint8_t rxIndex; /*!< Current index within the receiver buffer (txBuffer) */
+    static const uint8_t RX_BUFFER_SIZE = 32;/*!< Receiver buffer size */
+    static uint8_t rxBuffer[RX_BUFFER_SIZE]; /*!< Receiver buffer to hold values before being sent on the TWI */
+    static uint8_t rxIndex; /*!< Current index within the receiver buffer (rxBuffer) */
     static uint8_t rxBufferLen; /*!< Current size of the receiver buffer. Depends on the length of the data to be
  * transmitted */
 

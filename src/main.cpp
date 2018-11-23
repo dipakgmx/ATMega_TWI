@@ -5,12 +5,13 @@
 int main()
 {
     TWI twi;
+    DDRB |= (1 << PINB7);
     twi.TWISetMode(TWIMode::Slave, 0x01);
     sei();
 
     while(true) {
-        _delay_ms(100);
-        twi.TWIWrite(" ");
+        _delay_ms(50);
+        twi.Write("hello");
     }
     return 0;
 }
