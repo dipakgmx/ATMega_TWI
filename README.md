@@ -1,6 +1,7 @@
 # ATMega TWI(I2C) interrupt based library
 
 A C++ implementation of TWI communication of the ATMega2560.
+Master and slave communication is possible.
 
 ###  Functions used:
 
