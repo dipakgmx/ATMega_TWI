@@ -32,10 +32,10 @@ void TWI::Write(uint8_t slaveAddress,
 `data` Data to be transmitted. Sent in as an array  
 `dataLen` Length of the data to be transmitted  
 `repeatedStart` Boolean value, set as default to false. To be set to true if a repeated start is needed  
-`TWIReadRequest` Boolean value, set as default to false. This value is used by the TWIRead function only!  
+`TWIReadRequest` Boolean value, set as default to false. This value is used by the Read function only!  
 
-### Overload of Write() - Master transmitter function to write data into the TWI bus
-Function is used to send char array to the TWIWrite function. This is necessary since the length of the character array is determined here.
+### Overload of Write - Master transmitter function to write data into the TWI bus
+Function is used to send char array to the Write function. This is necessary since the length of the character array is determined here.
 ```
 void TWI::Write(const uint8_t slaveAddress,
                 const char *const data,
@@ -64,7 +64,7 @@ void TWI::Read(const uint8_t slaveAddress,
 `readBytesLen` Number of bytes the received data shall be  
 `repeatedStart` Boolean value, set as default to false. To be set to true if a repeated start is needed  
 
-### Overload of Read() - Slave transmitter function to write data into the TWI bus
+### Overload of Read - Slave transmitter function to write data into the TWI bus
 ```
 void TWI::Read()
 ```
