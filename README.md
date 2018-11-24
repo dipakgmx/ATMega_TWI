@@ -3,6 +3,30 @@
 A C++ implementation of TWI communication of the ATMega2560.
 Master and slave communication is possible.
 
+### How to:
+Typical usage 
+First call the constructor
+```
+TWI twi;
+```
+To set I2C mode as slave
+```
+twi.TWISetMode(TWIMode::Slave, 0x01);
+```    
+To set I2C mode as master
+```
+twi.TWISetMode(TWIMode::Master);
+```
+To read or recieve use Read() function- depends on Master or slave
+```
+twi.Read();
+```
+To transmit use Write() function- depends on Master or slave
+```
+twi.Read();
+```
+
+
 ###  Functions used:
 
 ### Function to set the transmission mode - Master or Slave
