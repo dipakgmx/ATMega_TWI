@@ -38,25 +38,25 @@ If `SET(FLASH ???)` was set as `YES`, as explained earlier, the file is flashed 
 
 ### Using the library:
 Typical usage  
-First call the constructor
+First, call the constructor:
 ```
 TWI twi;
 ```
-To set I2C mode as slave
+To set I2C mode as slave:
 ```
 twi.TWISetMode(TWIMode::Slave, 0x01);
 ```    
-To set I2C mode as master
+To set I2C mode as master:
 ```
 twi.TWISetMode(TWIMode::Master);
 ```
-To read or recieve use Read() function- depends on Master or slave
+To read or recieve use Read() function- depends on Master or slave:
 ```
 twi.Read();
 ```
-To transmit use Write() function- depends on Master or slave
+To transmit use Write() function- depends on Master or slave:
 ```
-twi.Read();
+twi.Write();
 ```
 
 
