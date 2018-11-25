@@ -37,7 +37,7 @@ Generated files would be found in the `bin` folder within the parent folder.
 If `SET(FLASH ???)` was set as `YES`, as explained earlier, the file is flashed onto the ATMega2560
 
 ### Using the library:
-Typical usage 
+Typical usage  
 First call the constructor
 ```
 TWI twi;
