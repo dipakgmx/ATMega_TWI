@@ -21,7 +21,7 @@ TWI::TWI()
 }
 
 /*!
- * Function to send the transmission mode - Master or Slave
+ * Function to set the transmission mode - Master or Slave
  * @param requestedMode Sets the transmission mode. Default mode is set to Master. For master - TWIMode::Slave, for
  * slave - TWIMode::Slave
  * @param setSlaveAddress Sets the address when slave mode is selected. Default value is set to 0x01. Value should be

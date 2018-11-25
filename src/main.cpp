@@ -1,4 +1,3 @@
-#include <avr/io.h>
 #include "TWI.h"
 #include "util/delay.h"
 
